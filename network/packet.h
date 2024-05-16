@@ -1,0 +1,8 @@
+//
+// Created by uab on 5/15/24.
+//
+
+#ifndef TRAFFIC_GENERATOR_PACKET_H
+#define TRAFFIC_GENERATOR_PACKET_H
+
+#endif //TRAFFIC_GENERATOR_PACKET_H
