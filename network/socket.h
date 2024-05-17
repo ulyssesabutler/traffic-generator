@@ -55,6 +55,7 @@ void bind_socket_to_interface(int socket_fd, const char* interface_name)
     }
 }
 
+// Note: Doesn't seem to work with raw sockets, as raw socket mode implies IP_HDRINCL
 void enable_kernel_header_creation(int socket_fd)
 {
     // We want the kernel to create the header for us by telling this socket that our packet will *not* include the IP header
@@ -70,6 +71,7 @@ int create_socket(const std::string& interface_name)
 {
     int socket_fd;
 
+    // This seems to imply IP_HDRINCL, so we have to construct the IP header ourselves
     if ((socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
     {
         perror("Failed to create socket");
@@ -78,19 +80,8 @@ int create_socket(const std::string& interface_name)
 
     set_promiscuous_mode(socket_fd, interface_name.c_str());
     bind_socket_to_interface(socket_fd, interface_name.c_str());
-    enable_kernel_header_creation(socket_fd);
 
     return socket_fd;
-}
-
-void receive_packet(int socket_fd, char* buffer, size_t buffer_size, ssize_t& data_size)
-{
-    data_size = recvfrom(socket_fd, buffer, buffer_size, 0, nullptr, nullptr);
-    if (data_size < 0)
-    {
-        perror("Error receiving packet");
-        exit(-1);
-    }
 }
 
 void send_packet(int socket_fd, char* buffer, ssize_t data_size, const std::string& dest_ip_addr, uint dest_port)
@@ -103,6 +94,16 @@ void send_packet(int socket_fd, char* buffer, ssize_t data_size, const std::stri
     if (sendto(socket_fd, buffer, data_size, 0, (struct sockaddr *) &dest_address, sizeof(dest_address)) < 0)
     {
         perror("Failed to send packet");
+        exit(-1);
+    }
+}
+
+void receive_packet(int socket_fd, char* buffer, size_t buffer_size, ssize_t& data_size)
+{
+    data_size = recvfrom(socket_fd, buffer, buffer_size, 0, nullptr, nullptr);
+    if (data_size < 0)
+    {
+        perror("Error receiving packet");
         exit(-1);
     }
 }
