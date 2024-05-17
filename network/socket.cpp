@@ -15,7 +15,7 @@
 
 ifreq create_interface_request(const char* interface_name)
 {
-    struct ifreq ifr;
+    ifreq ifr{};
     strncpy(ifr.ifr_name, interface_name, IFNAMSIZ - 1);
     return ifr;
 }
@@ -23,7 +23,7 @@ ifreq create_interface_request(const char* interface_name)
 void set_promiscuous_mode(int socket_fd, const char* interface_name)
 {
     // Search for the interface using its name
-    struct ifreq ifr = create_interface_request(interface_name);
+    ifreq ifr = create_interface_request(interface_name);
 
     // Retrieve the current flags
     if (ioctl(socket_fd, SIOCGIFFLAGS, &ifr) < 0)
@@ -45,7 +45,7 @@ void set_promiscuous_mode(int socket_fd, const char* interface_name)
 
 void bind_socket_to_interface(int socket_fd, const char* interface_name)
 {
-    struct ifreq ifr = create_interface_request(interface_name);
+    ifreq ifr = create_interface_request(interface_name);
 
     if (setsockopt(socket_fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, sizeof(ifr)) < 0)
     {
@@ -68,6 +68,8 @@ void enable_kernel_header_creation(int socket_fd)
 
 int create_socket(const std::string& interface_name)
 {
+    std::cout << "Creating socket with interface " << interface_name << std::endl;
+
     int socket_fd;
 
     // This seems to imply IP_HDRINCL, so we have to construct the IP header ourselves

@@ -5,6 +5,7 @@
 #include "network/socket.h"
 #include "network/packet.h"
 #include "util/hex.h"
+#include "util/options.h"
 
 std::string SRC_IP = "172.24.71.241";
 std::string DEST_IP = "172.24.71.213";
@@ -26,7 +27,7 @@ void send_thread(int socket_fd)
         std::cout << ss.str() << std::endl;
 
         // Send the packet
-        send_packet(socket_fd, (char*) buffer, packet_size, DEST_IP, PORT);
+        send_packet(socket_fd, buffer, packet_size, DEST_IP, PORT);
     }
 }
 
@@ -45,9 +46,11 @@ void send_thread(int socket_fd)
 
 int main(int argc, char** argv)
 {
-    std::string interface_name = argv[1];
+    options options = get_options(argc, argv);
+    std::cout << "Using parameters..." << std::endl;
+    print_options(options);
 
-    int socket_fd = create_socket(interface_name);
+    int socket_fd = create_socket(options.receive_interfaces[0]);
 
     std::cout << "Starting receiver thread" << std::endl;
     std::thread receiver(receive_thread, socket_fd);
