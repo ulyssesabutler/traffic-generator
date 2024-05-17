@@ -5,42 +5,11 @@
 #ifndef TRAFFIC_GENERATOR_PACKET_H
 #define TRAFFIC_GENERATOR_PACKET_H
 
-#include <netinet/ip.h>
 #include <string>
-#include <cstring>
 
-struct iphdr create_ip_header(const std::string& src_ip_addr, const std::string& dest_ip_addr, size_t data_size)
-{
-    struct iphdr header;
+void create_ip_packet(char* buffer, const std::string& src_ip_addr, const std::string& dest_ip_addr, char* data, size_t data_size, size_t& packet_size);
 
-    // The fields that seem to be actually important
-    header.ihl = 5;
-    header.version = 4;
-    header.saddr = inet_addr(src_ip_addr.c_str());
-    header.daddr = inet_addr(dest_ip_addr.c_str());
-    header.protocol = IPPROTO_RAW;
-    header.ttl = 255;  // Time to live
-
-    // A bit hacky, but it should be fine for now
-    static uint id = 0;
-    header.id = htonl(id++);
-
-    // These are values that we're kinda just ignoring
-    header.tos = 0;
-    header.frag_off = 0;
-    header.check = 0;
-
-    header.tot_len = sizeof(struct iphdr) + data_size;  // Total length
-
-    return header;
-}
-
-void create_ip_packet(char* buffer, const std::string& src_ip_addr, const std::string& dest_ip_addr, char* data, size_t data_size, size_t& packet_size)
-{
-    iphdr header = create_ip_header(src_ip_addr, dest_ip_addr, data_size);
-    std::memcpy(buffer, &header, sizeof(header));
-    std::memcpy(buffer + sizeof(header), data, data_size);
-    packet_size = sizeof(header) + data_size;
-}
+void send_packet(int socket_fd, char* buffer, ssize_t data_size, const std::string& dest_ip_addr, uint dest_port);
+void receive_packet(int socket_fd, char* buffer, size_t buffer_size, ssize_t& data_size);
 
 #endif //TRAFFIC_GENERATOR_PACKET_H
