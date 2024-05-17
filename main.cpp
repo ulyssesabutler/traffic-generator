@@ -7,11 +7,7 @@
 #include "util/hex.h"
 #include "util/options.h"
 
-std::string SRC_IP = "172.24.71.241";
-std::string DEST_IP = "172.24.71.213";
-uint PORT = 80; // No idea why we need to send this when there's no transport layer
-
-void send_thread(int socket_fd)
+void transmit_thread(int socket_fd, const std::string interface_name, const std::string& src_ip, const std::string& dest_ip, uint port)
 {
     char buffer[65536];
 
@@ -20,18 +16,18 @@ void send_thread(int socket_fd)
         int data[] = { i };
         // Create the packet
         size_t packet_size = 0;
-        create_ip_packet(buffer, SRC_IP, DEST_IP, (char*) data, sizeof(data), packet_size);
+        create_ip_packet(buffer, src_ip, dest_ip, (char*) data, sizeof(data), packet_size);
 
-        std::stringstream ss;
-        ss << "Sending packet " << i << " of size " << packet_size << ": " << buffer_to_hex(buffer, packet_size);
-        std::cout << ss.str() << std::endl;
+        std::cout << interface_name << ": "
+            << "Sending packet " << i << ", " << packet_size << " bytes of data: "
+            << buffer_to_hex(buffer, packet_size) << std::endl;
 
         // Send the packet
-        send_packet(socket_fd, buffer, packet_size, DEST_IP, PORT);
+        send_packet(socket_fd, buffer, packet_size, dest_ip, port);
     }
 }
 
-[[noreturn]] void receive_thread(int socket_fd)
+[[noreturn]] void receive_thread(int socket_fd, const std::string& interface_name)
 {
     char buffer[65536];
 
@@ -40,7 +36,9 @@ void send_thread(int socket_fd)
         ssize_t data_size;
         receive_packet(socket_fd, buffer, sizeof(buffer), data_size);
 
-        std::cout << "Received " << data_size << " bytes of data: " << buffer_to_hex(buffer, data_size) << std::endl;
+        std::cout << interface_name << ": "
+            << "Received " << data_size << " bytes of data: "
+            << buffer_to_hex(buffer, data_size) << std::endl;
     }
 }
 
@@ -50,16 +48,31 @@ int main(int argc, char** argv)
     std::cout << "Using parameters..." << std::endl;
     print_options(options);
 
-    int socket_fd = create_socket(options.receive_interfaces[0]);
+    std::cout << "Starting receiver threads" << std::endl;
+    std::vector<std::thread> receivers;
+    for (const std::string& interface_name: options.receive_interfaces)
+    {
+        std::cout << "  Creating receiver for " << interface_name << std::endl;
+        receivers.emplace_back(receive_thread, create_receive_socket(interface_name), interface_name);
+        std::cout << "    Done" << std::endl;
+    }
 
-    std::cout << "Starting receiver thread" << std::endl;
-    std::thread receiver(receive_thread, socket_fd);
+    std::cout << "Starting transmit thread" << std::endl;
+    std::string interface_name = options.transmit_interface;
+    std::cout << "  Creating transmitter for " << interface_name << std::endl;
+    std::thread transmitter
+    (
+        transmit_thread,
+        create_transmit_socket(interface_name),
+        interface_name,
+        options.src_ip_addr,
+        options.dest_ip_addr,
+        options.port
+    );
+    std::cout << "    Done" << std::endl;
 
-    std::cout << "Starting sender thread" << std::endl;
-    std::thread sender(send_thread, socket_fd);
-
-    receiver.join();
-    sender.join();
+    for (std::thread& receiver: receivers) receiver.join();
+    transmitter.join();
 
     return 0;
 }

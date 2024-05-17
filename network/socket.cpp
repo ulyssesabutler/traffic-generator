@@ -20,8 +20,10 @@ ifreq create_interface_request(const char* interface_name)
     return ifr;
 }
 
-void set_promiscuous_mode(int socket_fd, const char* interface_name)
+void set_promiscuous_mode(int socket_fd, const char* interface_name, bool enabled)
 {
+    std::cout << "    Setting promiscuous mode" << std::endl;
+
     // Search for the interface using its name
     ifreq ifr = create_interface_request(interface_name);
 
@@ -33,7 +35,10 @@ void set_promiscuous_mode(int socket_fd, const char* interface_name)
     }
 
     // Set the promiscuous flag
-    ifr.ifr_flags |= IFF_PROMISC;
+    if (enabled)
+        ifr.ifr_flags |= IFF_PROMISC;
+    else
+        ifr.ifr_flags &= ~IFF_PROMISC;
 
     // Set the flags on the interface
     if (ioctl(socket_fd, SIOCSIFFLAGS, &ifr) < 0)
@@ -45,6 +50,7 @@ void set_promiscuous_mode(int socket_fd, const char* interface_name)
 
 void bind_socket_to_interface(int socket_fd, const char* interface_name)
 {
+    std::cout << "    Binding socket to interface" << std::endl;
     ifreq ifr = create_interface_request(interface_name);
 
     if (setsockopt(socket_fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, sizeof(ifr)) < 0)
@@ -55,21 +61,21 @@ void bind_socket_to_interface(int socket_fd, const char* interface_name)
 }
 
 // Note: Doesn't seem to work with raw sockets, as raw socket mode implies IP_HDRINCL
-void enable_kernel_header_creation(int socket_fd)
+void set_kernel_header_creation(int socket_fd, bool enabled)
 {
+    std::cout << "    Setting kernel header creation to " << (enabled ? "true" : "false") << std::endl;
+    bool headers_included = !enabled;
+
     // We want the kernel to create the header for us by telling this socket that our packet will *not* include the IP header
-    int off = 0;
-    if (setsockopt(socket_fd, IPPROTO_IP, IP_HDRINCL, &off, sizeof(off)) < 0)
+    if (setsockopt(socket_fd, IPPROTO_IP, IP_HDRINCL, &headers_included, sizeof(headers_included)) < 0)
     {
-        perror("Failed enable kernel header creation");
+        perror("Failed to set kernel header creation");
         exit(-1);
     }
 }
 
-int create_socket(const std::string& interface_name)
+int create_socket(const std::string& interface_name, bool promiscuous_mode, bool kernel_headers)
 {
-    std::cout << "Creating socket with interface " << interface_name << std::endl;
-
     int socket_fd;
 
     // This seems to imply IP_HDRINCL, so we have to construct the IP header ourselves
@@ -79,8 +85,22 @@ int create_socket(const std::string& interface_name)
         exit(-1);
     }
 
-    set_promiscuous_mode(socket_fd, interface_name.c_str());
+    // We don't want to disable promiscuous mode in case a transmitter shares an interface with a receiver
+    if (promiscuous_mode)
+        set_promiscuous_mode(socket_fd, interface_name.c_str(), true);
+
     bind_socket_to_interface(socket_fd, interface_name.c_str());
+    set_kernel_header_creation(socket_fd, kernel_headers);
 
     return socket_fd;
+}
+
+int create_transmit_socket(const std::string& interface_name)
+{
+    return create_socket(interface_name, false, false);
+}
+
+int create_receive_socket(const std::string& interface_name)
+{
+    return create_socket(interface_name, true, false);
 }

@@ -11,7 +11,7 @@
 typedef struct
 {
     std::vector<std::string> receive_interfaces;
-    std::vector<std::string> transmit_interfaces;
+    std::string transmit_interface;
     std::string src_ip_addr;
     std::string dest_ip_addr;
     int port;
