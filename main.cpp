@@ -16,7 +16,7 @@ void transmit_thread(int socket_fd, const std::string interface_name, const std:
         int data[] = { i };
         // Create the packet
         size_t packet_size = 0;
-        create_ip_packet(buffer, src_ip, dest_ip, (char*) data, sizeof(data), packet_size);
+        create_udp_packet(buffer, src_ip, dest_ip, port, port, (char*) data, sizeof(data), packet_size);
 
         std::cout << interface_name << ": "
             << "Sending packet " << i << ", " << packet_size << " bytes of data: "
