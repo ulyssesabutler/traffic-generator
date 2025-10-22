@@ -23,7 +23,7 @@ void transmit_thread(int socket_fd, const std::string interface_name, const std:
             << buffer_to_hex(buffer, packet_size) << std::endl;
 
         // Send the packet
-        //send_packet(socket_fd, buffer, packet_size, dest_ip, port);
+        send_packet(socket_fd, buffer, packet_size, dest_ip, port);
     }
 }
 
@@ -53,7 +53,7 @@ int main(int argc, char** argv)
     for (const std::string& interface_name: options.receive_interfaces)
     {
         std::cout << "  Creating receiver for " << interface_name << std::endl;
-        //receivers.emplace_back(receive_thread, create_receive_socket(interface_name), interface_name);
+        receivers.emplace_back(receive_thread, create_receive_socket(interface_name), interface_name);
         std::cout << "    Done" << std::endl;
     }
 
@@ -63,7 +63,7 @@ int main(int argc, char** argv)
     std::thread transmitter
     (
         transmit_thread,
-        0, //create_transmit_socket(interface_name),
+        create_transmit_socket(interface_name),
         interface_name,
         options.src_ip_addr,
         options.dest_ip_addr,
