@@ -10,6 +10,7 @@
 #include <string>
 #include <cstring>
 #include <cstdint>
+#include <vector>
 
 uint16_t checksum16(const void* data, size_t len) {
     const uint8_t* p = static_cast<const uint8_t*>(data);
@@ -53,7 +54,7 @@ struct iphdr create_ip_header(const std::string& src_ip_addr, const std::string&
     header.tos = 0;
     header.frag_off = 0;
 
-    header.tot_len = sizeof(struct iphdr) + data_size;  // Total length
+    header.tot_len = htons(sizeof(struct iphdr) + data_size);  // Total length
 
     header.check = 0;
     header.check = checksum16((const uint16_t*)(&header), sizeof(header));
@@ -88,6 +89,23 @@ void create_udp_packet(char* buffer, const std::string& src_ip_addr, const std::
     std::memcpy(buffer + sizeof(ip_header), &udp_header, sizeof(udp_header));
     std::memcpy(buffer + sizeof(ip_header) + sizeof(udp_header), data, data_size);
     packet_size = sizeof(ip_header) + sizeof(udp_header) + data_size;
+}
+
+void create_padded_udp_packet(char* buffer, const std::string& src_ip_addr, const std::string& dest_ip_addr, uint16_t src_port, uint16_t dst_port, const char* data, size_t data_size, size_t& packet_size)
+{
+    constexpr size_t ETH_HDR_LEN  = 14;
+    constexpr size_t IPV4_HDR_LEN = 20;
+    constexpr size_t UDP_HDR_LEN  = 8;
+
+    const size_t header_size = ETH_HDR_LEN + IPV4_HDR_LEN + UDP_HDR_LEN;
+
+    const size_t padding = (32 - (header_size % 32)) % 32;
+
+    const size_t padded_size = padding + data_size;
+    std::vector<char> padded_payload(padded_size, 0);
+    std::memcpy(padded_payload.data() + padding, data, data_size);
+
+    create_udp_packet(buffer, src_ip_addr, dest_ip_addr, src_port, dst_port, padded_payload.data(), padded_payload.size(), packet_size);
 }
 
 void send_packet(int socket_fd, char* buffer, ssize_t data_size, const std::string& dest_ip_addr, uint dest_port)
