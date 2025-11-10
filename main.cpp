@@ -11,15 +11,23 @@ void transmit_thread(int socket_fd, const std::string interface_name, const std:
 {
     char buffer[65536];
 
-    for (int i = 9; i >= 0; i--)
+    std::vector<std::string> messages;
+
+    messages.insert(messages.end(), 5, "NOTANEMAILADDRESS");
+    messages.insert(messages.end(), 5, "AN@EMAIL.ADDRESS");
+    messages.insert(messages.end(), 10, "NOTANEMAILADDRESS");
+
+    for (const auto& msg : messages)
     {
-        int data[] = { i };
+        const char* data = msg.data();         // pointer to the string bytes
+        const size_t data_size = msg.size();   // number of bytes
+
         // Create the packet
         size_t packet_size = 0;
-        create_padded_udp_packet(buffer, src_ip, dest_ip, port, port, (char*) data, sizeof(data), packet_size);
+        create_padded_udp_packet(buffer, src_ip, dest_ip, port, port, data, data_size, packet_size);
 
         std::cout << interface_name << ": "
-            << "Sending packet " << i << ", " << packet_size << " bytes of data: "
+            << "Sending packet " << msg << ", " << packet_size << " bytes of data: "
             << buffer_to_hex(buffer, packet_size) << std::endl;
 
         // Send the packet
